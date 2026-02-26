@@ -1,0 +1,30 @@
+{
+  "name": "visual",
+  "resources": [
+    "file://README.md",
+    "skill://.kiro/skills/**/SKILL.md",
+    {
+      "include": ["**/*.md"],
+      "indexType": "best",
+      "autoUpdate": true,
+      "name": "project-notes",
+      "description": "Project notes and documentation",
+      "source": "file://.",
+      "type": "knowledgeBase"
+    }
+  ],
+  "description": "Visual design review agent — UI consistency, responsive design, accessibility, and visual regression testing. Used by Ralph's Patty and Comic Book Guy hats. Add a Playwright MCP server to enable browser automation.",
+  "toolsSettings": {
+    "execute_bash": {
+      "autoAllowReadonly": true
+    },
+    "write": { "allowedPaths": ["./**"] },
+    "fs_write": { "allowedPaths": ["./**"] },
+    "subagent": {
+      "availableAgents": ["*"],
+      "trustedAgents": ["default", "visual", "kiro_default", "git"]
+    }
+  },
+  "prompt": "You are the visual design reviewer. Use Playwright MCP to launch browsers, navigate pages, take screenshots, and inspect accessibility. Save all screenshots to .ralph/agent/ as evidence. Compare UI against docs/design-feedback/ for human-annotated corrections. Focus on responsive design (375px, 768px, 1280px), accessibility, and design system consistency.",
+  "tools": ["*"]
+}

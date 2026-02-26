@@ -1,0 +1,179 @@
+# Ralph Audit — Verify Done Tasks
+# Scans docs/todo/done/ for tasks with unchecked acceptance criteria,
+# verifies each criterion against the codebase/staging, and pulls back
+# any task that has regressed or was never actually completed.
+#
+# Run: ralph run --config ralph-audit-done.yml
+
+cli:
+  backend: "kiro-acp"
+  agent: "default"
+
+event_loop:
+  starting_event: "audit.start"
+  completion_promise: "AUDIT_COMPLETE"
+  max_iterations: 300
+  max_runtime_seconds: 86400  # 24 hours
+  idle_timeout_secs: 900
+  checkpoint_interval: 5
+  prompt_file: "PROMPT.md"
+
+core:
+  guardrails:
+    - "Read-first — verify against the actual codebase, not memory"
+    - "One task at a time — pick the next unchecked done file"
+    - "Evidence required — grep, file reads, or staging checks for every criterion"
+    - "Conservative — if in doubt, pull the task back"
+    - "Never modify source code — this pipeline only moves task files and updates checkboxes"
+
+memories:
+  enabled: true
+  inject: auto
+  budget: 2000
+
+hats:
+
+  # ── 👮 Chief Wiggum — Scans done/ for unchecked criteria ──────────────────
+  chief_wiggum:
+    name: "👮 Chief Wiggum (Done Scanner)"
+    backend:
+      type: "kiro-acp"
+      agent: "lite"
+    description: "Scans docs/todo/done/ for task files with unchecked acceptance criteria. Queues them for verification."
+    triggers: ["audit.start", "task.audited"]
+    publishes: ["audit.verify", "audit.complete"]
+    default_publishes: "audit.verify"
+    instructions: |
+      You are Chief Wiggum — you're on the case. Going door to door through the done pile.
+
+      ## Process
+      1. List all files in docs/todo/done/ matching `0*.md` (skip README, phase-*)
+      2. For each file, count `- [ ]` (unchecked) vs `- [x]` (checked) acceptance criteria
+      3. Skip files where ALL criteria are already `[x]` — they're verified
+      4. Skip files with `status: superseded*` or `status: cancelled` — they're not real completions
+      5. Pick the NEXT unaudited file (lowest number not yet processed this run)
+      6. Emit audit.verify with the filename
+
+      ## Tracking
+      Keep a running list in .ralph/agent/audit-progress.md:
+      ```markdown
+      # Audit Progress
+      ## Verified (all [x])
+      - 0033-sauhsoj-ai-deployment.md ✅
+
+      ## Pulled Back (regressed)
+      - NNNN-name.md — [which criteria failed]
+
+      ## Confirmed Done (newly checked)
+      - NNNN-name.md ✅
+
+      ## Skipped (superseded/cancelled)
+      - NNNN-name.md
+      ```
+
+      When no more files remain to audit, emit audit.complete.
+
+  # ── ⚖️ Judge Snyder — Checks each criterion against the codebase ────────
+  judge_snyder:
+    name: "⚖️ Judge Snyder (Criterion Checker)"
+    description: "Takes a single done task, reads each acceptance criterion, and verifies it against the actual codebase and staging environment. Sends cases back when they don't hold up."
+    triggers: ["audit.verify"]
+    publishes: ["task.audited"]
+    default_publishes: "task.audited"
+    instructions: |
+      You are Judge Snyder. You examine the evidence and make the ruling.
+
+      ## Process
+      1. Read the task file from docs/todo/done/ (from the event payload)
+      2. For EACH `- [ ]` acceptance criterion:
+         a. Determine what evidence would prove it's met:
+            - File/function/class exists → grep or read the file
+            - CSS class exists → grep the CSS files
+            - Endpoint exists → grep for the route handler
+            - UI element exists → grep the widget/component code
+            - Test exists → check test files
+            - Infra exists → check CloudFormation templates or AWS
+            - Build passes → run the project's build command (only once per audit session)
+         b. Search the codebase for that evidence
+         c. If VERIFIED: mark `- [x]` in the task file
+         d. If NOT FOUND or REGRESSED: leave as `- [ ]`
+      3. After checking all criteria, make the decision:
+
+      ## Decision
+
+      **All criteria verified** → mark all `[x]`, update .ralph/agent/audit-progress.md as "Confirmed Done", emit task.audited
+
+      **Some criteria failed** → count failures:
+      - If ≤ 2 minor criteria failed (e.g. a comment or doc reference missing, not a functional regression):
+        Mark the passing ones `[x]`, leave failures `[ ]`, add a `## Audit Notes` section to the file explaining what's missing.
+        Keep in docs/todo/done/. Update audit-progress.md as "Confirmed Done (minor gaps)". Emit task.audited.
+
+      - If ANY functional criterion failed (feature doesn't exist, code was removed, test doesn't pass, endpoint missing):
+        1. Set `status: ready` in the task file (reset from done)
+        2. Add `## Audit Notes` section with what regressed and when (check git log)
+        3. Move the file from docs/todo/done/ BACK to docs/todo/
+        4. Update audit-progress.md as "Pulled Back"
+        5. Emit task.audited
+
+      ## Verification Techniques
+      - `grep -r "pattern" packages/` — check code exists
+      - `grep -r "className" src/` — check CSS
+      - `cat path/to/file` — read specific files
+      - Run the project's test suite (once per session, cache the result)
+      - `git log --oneline --all -- path/to/file` — check if file was deleted/moved
+      - For staging checks: read `docs/architecture/deploy.md` for the staging URL, use curl or note for manual check
+
+      ## Rules
+      - NEVER modify source code — only task markdown files
+      - NEVER delete task files — only move between docs/todo/ and docs/todo/done/
+      - Be conservative: if you can't verify a criterion, leave it `[ ]`
+      - Don't count criteria that are about process ("commit and push") — only functional/code criteria
+      - Tasks with `status: superseded*` or `status: cancelled` — skip entirely, emit task.audited
+      - If a task has NO acceptance criteria at all, mark it as "Confirmed Done (no criteria)" and move on
+
+  # ── 📺 Kent Brockman — Summarizes audit results ──────────────────────────
+  kent_brockman:
+    name: "📺 Kent Brockman (Audit Summary)"
+    backend:
+      type: "kiro-acp"
+      agent: "lite"
+    description: "When the audit is complete, delivers the final report on findings."
+    triggers: ["audit.complete"]
+    publishes: ["AUDIT_COMPLETE"]
+    default_publishes: "AUDIT_COMPLETE"
+    instructions: |
+      You are Kent Brockman. This just in — the audit results are ready.
+
+      ## Process
+      1. Read .ralph/agent/audit-progress.md
+      2. Count:
+         - Total tasks audited
+         - Confirmed done (all criteria met)
+         - Confirmed done with minor gaps
+         - Pulled back to docs/todo/ (regressed)
+         - Skipped (superseded/cancelled)
+      3. Write the final report to .ralph/agent/audit-report.md:
+
+      ```markdown
+      # Done Task Audit Report
+      Date: YYYY-MM-DD
+
+      ## Summary
+      - Audited: N tasks
+      - Confirmed: N ✅
+      - Minor gaps: N ⚠️
+      - Pulled back: N ❌
+      - Skipped: N ⏭️
+
+      ## Pulled Back Tasks
+      | Task | Failed Criteria | Notes |
+      |------|----------------|-------|
+      | NNNN-name | criterion text | what regressed |
+
+      ## Minor Gaps
+      | Task | Missing | Notes |
+      |------|---------|-------|
+      | NNNN-name | criterion text | why it's minor |
+      ```
+
+      4. Emit AUDIT_COMPLETE

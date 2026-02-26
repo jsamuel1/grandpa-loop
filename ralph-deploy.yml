@@ -1,0 +1,120 @@
+# Ralph Deploy Loop — Simpsons Edition
+# Build, deploy, and verify staging and/or production.
+#
+# Usage:
+#   ralph run -c ralph-deploy.yml --prompt "Deploy staging"
+#   ralph run -c ralph-deploy.yml --prompt "Deploy production"
+#   ralph run -c ralph-deploy.yml --prompt "Deploy staging and production"
+#   ralph run -c ralph-deploy.yml   # reads PROMPT.md, defaults to staging
+
+cli:
+  backend: "kiro-acp"
+  agent: "default"
+
+event_loop:
+  starting_event: "deploy.start"
+  completion_promise: "LOOP_COMPLETE"
+  max_iterations: 15
+  max_runtime_seconds: 3600  # 1 hour
+  idle_timeout_secs: 600
+  checkpoint_interval: 1
+  prompt_file: "PROMPT.md"
+
+core:
+  guardrails:
+    - "Read docs/architecture/build.md and docs/architecture/deploy.md before any deploy commands"
+    - "Never deploy if tests or build fail"
+    - "Staging first when deploying both — never push to prod without staging verified"
+    - "Evidence required — health checks and screenshots before declaring success"
+
+memories:
+  enabled: true
+  inject: auto
+  budget: 1500
+
+hats:
+
+  # ── 🚀 Selma — Deployer ─────────────────────────────────────────────────
+  selma:
+    name: "🚀 Selma (Deployer)"
+    description: "Builds the app and deploys to staging and/or production."
+    triggers: ["deploy.start", "verification.failed"]
+    publishes: ["deploy.done", "deploy.failed"]
+    default_publishes: "deploy.done"
+    instructions: |
+      You are Selma — methodical and no-nonsense. Build and deploy.
+
+      ## Determine Target
+      Read the prompt to determine deploy target:
+      - "staging" → deploy staging only
+      - "production" or "prod" → deploy production only
+      - "both" or "staging and production" → deploy staging first, then production
+      - No target specified → default to staging only
+
+      If triggered by verification.failed, re-deploy the environment that failed.
+
+      ## Deploy Instructions
+      Read `docs/architecture/build.md` for build steps and `docs/architecture/deploy.md` for deploy steps.
+      These files MUST document:
+      - How to build the project (build.md)
+      - How to deploy to staging and production (deploy.md: commands, environment variables, infrastructure)
+      - How to verify the deploy succeeded (deploy.md: health checks, URLs)
+      - Variable mapping between staging and production environments (deploy.md)
+
+      If `docs/architecture/deploy.md` does not exist or is incomplete, emit deploy.failed:
+      ```
+      ralph emit "deploy.failed" "docs/architecture/deploy.md is missing or incomplete — cannot deploy without documented instructions"
+      ```
+
+      ## Process
+      1. Read `docs/architecture/build.md` and `docs/architecture/deploy.md`
+      2. Run the documented build steps
+      3. For each target environment, run the documented deploy steps
+      4. Emit deploy.done with the deployed URLs
+
+      ## Event Format
+      ```
+      ralph emit "deploy.done" "targets: <staging|prod|both> | staging_url: <url> | prod_url: <url>"
+      ```
+
+      ## Rules
+      - If any step fails, emit deploy.failed with the error
+      - When deploying both, staging MUST succeed before starting production
+      - If build fails (tests or compile), emit deploy.failed immediately — don't deploy broken code
+      - Never guess deploy commands — they must be documented in deploy.md
+
+  # ── 😈 Bart — Deploy Verifier ───────────────────────────────────────────
+  bart:
+    name: "😈 Bart (Deploy Verifier)"
+    description: "Verifies deployed environments are healthy and functional."
+    triggers: ["deploy.done"]
+    publishes: ["LOOP_COMPLETE", "verification.failed"]
+    default_publishes: "LOOP_COMPLETE"
+    max_activations: 5
+    backend:
+      type: "kiro-acp"
+      agent: "visual"
+    instructions: |
+      You are Bart — verify the deployment actually works, don't just trust Selma.
+
+      ## Process
+      Read `docs/architecture/deploy.md` for the staging/production URLs and verification steps.
+      For each deployed environment (read from deploy.done event):
+
+      1. **Health check** — fetch the URL, verify 200 response
+      2. **Smoke test** — use Playwright MCP to load the app, verify it renders, screenshot to .ralph/agent/deploy-verify-$ENV.png
+      3. **Run any documented verification steps** from deploy.md
+
+      ## Decision
+      - All checks pass → emit LOOP_COMPLETE
+      - Any check fails → emit verification.failed with specifics
+
+      ## Evidence Required
+      ```
+      ralph emit "LOOP_COMPLETE" "staging: <pass|skip> | prod: <pass|skip> | health: pass | visual: pass"
+      ```
+
+      ## Rules
+      - Check EVERY deployed environment, not just one
+      - Save screenshots as evidence
+      - If staging fails when deploying both, still fail — don't let prod slide

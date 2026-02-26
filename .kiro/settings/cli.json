@@ -1,0 +1,7 @@
+{
+  "chat.enableKnowledge": true,
+  "chat.enableCodeIntelligence": true,
+  "chat.enableThinking": true,
+  "chat.enableTodoList": true,
+  "chat.defaultAgent": "default"
+}

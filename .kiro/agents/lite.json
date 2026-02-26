@@ -1,0 +1,31 @@
+{
+  "name": "lite",
+  "model": "claude-sonnet-4.6",
+  "resources": [
+    "file://README.md",
+    "skill://.kiro/skills/**/SKILL.md",
+    {
+      "include": ["**/*.md"],
+      "indexType": "best",
+      "autoUpdate": true,
+      "name": "project-notes",
+      "description": "Project notes and documentation",
+      "source": "file://.",
+      "type": "knowledgeBase"
+    }
+  ],
+  "description": "Lightweight agent using a smaller model. Used by Ralph hats that do research, curation, or commits — tasks that don't need the full model.",
+  "toolsSettings": {
+    "execute_bash": {
+      "autoAllowReadonly": true
+    },
+    "write": { "allowedPaths": ["./**"] },
+    "fs_write": { "allowedPaths": ["./**"] },
+    "subagent": {
+      "availableAgents": ["*"],
+      "trustedAgents": ["default", "visual", "kiro_default", "git"]
+    }
+  },
+  "prompt": "Use subagents to run independent tasks in parallel to reduce wall-clock time. Always determine today's date before working with dates.",
+  "tools": ["*"]
+}

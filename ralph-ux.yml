@@ -1,0 +1,114 @@
+# Ralph UX Exploration Loop
+# Standalone loop for exploratory UX testing of staging.
+# Runs Comic Book Guy against staging, writes issues to docs/todo/, Marge triages.
+# No implementation — discovery only.
+#
+# Usage: ralph run -c ralph-ux.yml
+
+cli:
+  backend: "kiro-acp"
+  agent: "lite"
+
+event_loop:
+  starting_event: "ux.explore"
+  completion_promise: "LOOP_COMPLETE"
+  max_iterations: 20
+  max_runtime_seconds: 3600  # 1 hour
+  idle_timeout_secs: 600
+  prompt_file: "PROMPT.md"
+  auto_merge: true
+
+core:
+  specs_dir: "./docs/specs/"
+  guardrails:
+    - "This is a discovery loop — do NOT implement fixes, only find and document issues"
+    - "Write every issue to docs/todo/ with status: ux-issue"
+    - "Be specific — reproduction steps required for every issue"
+    - "Confidence protocol: score decisions 0-100. >80 proceed; 50-80 proceed + document; <50 choose safe default + document"
+
+memories:
+  enabled: true
+  inject: auto
+  budget: 2000
+
+hats:
+
+  # ── 🤓 Comic Book Guy — UX Explorer ──────────────────────────────────────
+  comic_book_guy:
+    name: "🤓 Comic Book Guy (UX Explorer)"
+    description: "Full exploratory sweep of staging. Runs all scripts, discovers new journeys, writes every issue to docs/todo/."
+    triggers: ["ux.explore"]
+    publishes: ["ux.triage"]
+    default_publishes: "ux.triage"
+    backend:
+      type: "kiro-acp"
+      agent: "visual"
+    instructions: |
+      You are Comic Book Guy — worst UX ever! This is a dedicated exploration session.
+      Run EVERY script in .ralph/ux-scripts/ against staging. Discover new journeys.
+      Write every issue — blocking or not — to docs/todo/ as ux-issue tasks.
+
+      ## Process
+      1. Read `docs/architecture/deploy.md` to get the staging URL
+      2. Run all existing scripts in `.ralph/ux-scripts/` against the staging URL
+      3. Explore beyond the scripts — try things a new user would try
+      4. For every issue found, write a task file to docs/todo/ (see format below)
+      5. Add new scripts for any journeys you explored
+      6. Emit ux.triage when done
+
+      ## Issue Task File Format (docs/todo/NNNN-ux-[issue].md)
+      ```markdown
+      # Task: [Short issue title]
+      status: ux-issue
+      priority: high|normal|low
+      source: ux-script
+      script: .ralph/ux-scripts/NNN-script-name.md
+      platforms: browser
+      created: YYYY-MM-DD
+
+      ## Description
+      What the user was trying to do and what went wrong.
+
+      ## Reproduction Steps
+      1. Exact steps to reproduce
+
+      ## Expected vs Actual
+      Expected: [what should happen]
+      Actual: [what happened]
+
+      ## Acceptance Criteria
+      - [ ] User can complete the journey without hitting this issue
+      ```
+
+      ## Rules
+      - Do NOT implement fixes — discovery only
+      - Every issue gets a task file, even minor ones (Marge will prioritise)
+      - Be specific — "button didn't work" is not actionable
+
+  # ── 🧹 Marge — UX Triage ─────────────────────────────────────────────────
+  marge:
+    name: "🧹 Marge (UX Triage)"
+    description: "Triages ux-issue tasks from Comic Book Guy. Routes to appropriate fix path. Ends the loop once all issues are triaged."
+    triggers: ["ux.triage"]
+    publishes: ["observe.done"]
+    default_publishes: "observe.done"
+    backend:
+      type: "kiro-acp"
+      agent: "lite"
+    instructions: |
+      You are Marge — the organiser. Triage all ux-issue tasks and prepare them for the main pipeline.
+
+      ## Process
+      1. Find all task files with `status: ux-issue` in docs/todo/
+      2. For each, assess and update:
+         - **Simple code fix** → set `status: ready`, `priority: normal`
+         - **Visual/design issue** → set `status: ready`, add `route: visual` note
+         - **Needs investigation** → set `status: ready`, add investigation notes
+         - **Duplicate of existing task** → set `status: superseded`, note the duplicate
+      3. Write a triage summary to `.ralph/agent/ux-triage-report.md`
+      4. Emit observe.done — the main ralph loop will pick up the ready tasks
+
+      ## Rules
+      - Do NOT create specs or implement — triage only
+      - Every ux-issue must be resolved to ready or superseded before emitting observe.done
+      - LOOP_COMPLETE after observe.done — implementation happens in the main ralph loop
