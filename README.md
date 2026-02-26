@@ -97,6 +97,7 @@ The `.kiro/` directory contains agent and settings configuration for [Kiro CLI](
 
 ## Documentation
 
+- [Grandpa Lissajous — A Loop-de-Loop](https://blog.sauhsoj.wtf/posts/the-grandpa-loop/) — Blog post on the project
 - [docs/architecture/grandpa-loop.md](docs/architecture/grandpa-loop.md) — Full architecture writeup
 - [docs/architecture/designing-a-ralph-loop.md](docs/architecture/designing-a-ralph-loop.md) — How to design custom loops
 
