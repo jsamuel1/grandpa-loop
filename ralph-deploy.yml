@@ -20,6 +20,9 @@ event_loop:
   checkpoint_interval: 1
   prompt_file: "PROMPT.md"
 
+features:
+  auto_merge: true
+
 core:
   guardrails:
     - "Read docs/architecture/build.md and docs/architecture/deploy.md before any deploy commands"

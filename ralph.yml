@@ -38,6 +38,9 @@ memories:
 tasks:
   enabled: true
 
+features:
+  auto_merge: true
+
 # ─────────────────────────────────────────────────────────────────────────────
 # The Simpson Family — 8 Hats
 # ─────────────────────────────────────────────────────────────────────────────
@@ -61,7 +64,11 @@ hats:
       1. Check PROMPT.md for raw requirements or ideas
       2. If PROMPT.md has new work, break each into individual task files in docs/todo/ and remove the curated items from PROMPT.md
       3. Check docs/todo/ for existing unclaimed task files (no `status: claimed`, `status: in-progress`, or `status: done`)
-      4. If unclaimed tasks exist, pick the highest-priority one (foundation > high > normal > low, oldest first within same priority), set `status: claimed`, and emit requirements.curated
+      4. If unclaimed tasks exist, pick the highest-priority one (foundation > high > normal > low, oldest first within same priority), set `status: claimed`, register it with Ralph's task tracker, and emit requirements.curated:
+         ```bash
+         ralph tools task add "NNNN: Short title from task file" -p PRIORITY -d "docs/todo/NNNN-short-name.md"
+         ```
+         Priority mapping: foundation/high → 1, normal → 3, low → 5. Use the task file path as the description so downstream hats can find it.
       5. If the queue is empty and PROMPT.md has no new work, emit queue.empty
 
       ## UX Triage (when triggered by ux.triage or ux.blocked)
@@ -314,7 +321,6 @@ hats:
       - One package at a time — don't scatter changes
       - YAGNI: implement only what the spec requires — no extras
       - If blocked (missing dependency, unclear spec), emit build.blocked — but ONLY if you cannot resolve the issue in the current iteration. Do NOT emit build.blocked if you resolve the issue and emit build.done in the same iteration.
-      - After emitting build.done, move the task file from docs/todo/ to docs/todo/done/ — this closes the lifecycle and prevents stale build.blocked events in the next iteration
 
   # ── 🚀 Selma — Staging Deployer ──────────────────────────────────────────
   selma:
@@ -740,7 +746,15 @@ hats:
          d. If ANY criterion cannot be verified, do NOT move to done — emit task.complete with a warning listing the unverified criteria
       6. Update the task file status to `status: done` (AFTER all criteria are checked)
       7. Move the task file from docs/todo/NNNN-*.md to docs/todo/done/NNNN-*.md
-      8. Emit task.complete
+      8. Close the Ralph task tracker entry:
+         ```bash
+         ralph tools task list
+         ```
+         Find the task matching this file and close it:
+         ```bash
+         ralph tools task close <task-id>
+         ```
+      9. Emit task.complete
 
       ## Commit Message Format
       ```
@@ -892,7 +906,22 @@ hats:
     instructions: |
       You are Apu — thank you, come again! You close the shop.
 
-      ## Process
+      ## Step 0: Worktree Check
+
+      Detect if this loop is running in a git worktree:
+      ```bash
+      GIT_DIR=$(git rev-parse --git-dir)
+      GIT_COMMON=$(git rev-parse --git-common-dir)
+      [ "$GIT_DIR" != "$GIT_COMMON" ] && echo "WORKTREE" || echo "MAIN"
+      ```
+
+      If **WORKTREE**: skip tagging — the merge-loop will tag after merging to main.
+      Emit release.tagged with "worktree — tagging deferred to post-merge", then LOOP_COMPLETE.
+      Ralph's auto_merge will handle the rest.
+
+      If **MAIN**: proceed with the full tagging process below.
+
+      ## Process (MAIN branch only)
 
       1. **Determine version**
          Read the current version from `package.json` (the `version` field).
@@ -931,3 +960,4 @@ hats:
       - Use annotated tags (`git tag -a`), not lightweight
       - If `gh` CLI is available, verify the workflows started
       - If git push fails (e.g., protected branch), emit release.tagged with a warning
+      - In a worktree, ALWAYS skip tagging — emit LOOP_COMPLETE to trigger auto-merge

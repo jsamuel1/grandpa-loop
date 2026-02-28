@@ -1,0 +1,1 @@
+2026-02-28T05:30:25.262310Z  WARN ralph::preflight: Core config 'ralph.yml' contains hats/events and hats source 'builtin:merge-loop' was provided; hats source takes precedence for hats/events

@@ -16,6 +16,8 @@ event_loop:
   max_runtime_seconds: 3600  # 1 hour
   idle_timeout_secs: 600
   prompt_file: "PROMPT.md"
+
+features:
   auto_merge: true
 
 core:

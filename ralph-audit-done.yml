@@ -18,6 +18,9 @@ event_loop:
   checkpoint_interval: 5
   prompt_file: "PROMPT.md"
 
+features:
+  auto_merge: true
+
 core:
   guardrails:
     - "Read-first — verify against the actual codebase, not memory"
