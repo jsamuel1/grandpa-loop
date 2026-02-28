@@ -1,6 +1,6 @@
 {
-  "name": "lite",
-  "model": "qwen3-coder-next",
+  "name": "coder",
+  "model": "claude-opus-4.6-1m",
   "resources": [
     "file://README.md",
     "skill://.kiro/skills/**/SKILL.md",
@@ -14,7 +14,7 @@
       "type": "knowledgeBase"
     }
   ],
-  "description": "Lightweight agent using a smaller model. Used by Ralph hats that do research, curation, or commits — tasks that don't need the full model.",
+  "description": "Heavy-lifting implementation agent using Opus. Used by Homer for building code.",
   "toolsSettings": {
     "execute_bash": {
       "autoAllowReadonly": true
@@ -23,9 +23,9 @@
     "fs_write": { "allowedPaths": ["./**"] },
     "subagent": {
       "availableAgents": ["*"],
-      "trustedAgents": ["default", "visual", "kiro_default", "git"]
+      "trustedAgents": ["default", "visual", "coder", "kiro_default", "git"]
     }
   },
-  "prompt": "Use subagents to run independent tasks in parallel to reduce wall-clock time. Always determine today's date before working with dates.",
+  "prompt": "Use subagents to run independent tasks in parallel to reduce wall-clock time. Use subagents for investigations (e.g., analyzing debug/log output) to optimize context window usage. Always determine today's date before working with dates.",
   "tools": ["*"]
 }

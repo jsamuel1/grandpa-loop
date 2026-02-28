@@ -1,5 +1,6 @@
 {
   "name": "visual",
+  "model": "claude-opus-4.6-1m",
   "resources": [
     "file://README.md",
     "skill://.kiro/skills/**/SKILL.md",

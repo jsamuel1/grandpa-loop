@@ -1,5 +1,6 @@
 {
   "name": "default",
+  "model": "claude-sonnet-4.6",
   "resources": [
     "file://README.md",
     "skill://.kiro/skills/**/SKILL.md",

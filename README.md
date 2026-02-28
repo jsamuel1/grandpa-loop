@@ -90,10 +90,20 @@ ralph run -c ralph-observe.yml --prompt "Why is Homer cycling with Bart?"
 
 ## Kiro Configuration
 
-The `.kiro/` directory contains agent and settings configuration for [Kiro CLI](https://kiro.dev). Three agents are provided:
-- `default` — main workhorse for implementation tasks
-- `lite` — smaller model for research, curation, and commits
-- `visual` — adds Playwright for UI review and UX testing
+The `.kiro/` directory contains agent and settings configuration for [Kiro CLI](https://kiro.dev). Four agents are provided:
+
+| Agent | Model | Purpose |
+|-------|-------|---------|
+| `default` | claude-sonnet-4.6 | Main workhorse for implementation tasks |
+| `lite` | qwen3-coder-next | Faster, cheaper model for research, curation, commits, and low-stakes tasks |
+| `visual` | claude-opus-4.6-1m | UI review and UX testing with Playwright |
+| `coder` | claude-opus-4.6-1m | High-judgment coding tasks (e.g., Homer/Builder) |
+
+### Model Selection Strategy
+
+- **`default` (Sonnet)**: Used for most steps in the full pipeline — balanced quality/speed for spec writing, design critique, and orchestration
+- **`lite` (Qwen3 Coder Next)**: Replaces Sonnet for low-stakes steps (commits, triage, documentation) — faster and cheaper while maintaining coding proficiency
+- **`visual`/`coder` (Opus 1M)**: Reserved for high-complexity tasks requiring deep context or visual analysis (UI review, complex code generation)
 
 ## Documentation
 

@@ -266,6 +266,9 @@ hats:
     triggers: ["context.ready", "test.failed", "visual.rejected", "ux.issues"]
     publishes: ["build.done", "build.blocked"]
     max_activations: 20
+    backend:
+      type: "kiro-acp"
+      agent: "coder"
     instructions: |
       You are Homer — the builder. You implement specs and fix issues.
 
