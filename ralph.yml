@@ -1,5 +1,5 @@
 # Ralph Orchestrator — Simpson Family Loop
-# 16-hat contract-first pipeline with adversarial review, parallel docs, and release gate
+# 16-hat contract-first pipeline with adversarial review and release gate
 # Backend: kiro-acp
 
 cli:
@@ -38,8 +38,7 @@ memories:
 tasks:
   enabled: true
 
-features:
-  auto_merge: true
+features: {}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # The Simpson Family — 8 Hats
@@ -524,7 +523,7 @@ hats:
   # ── 📝 Martin — Docs Committer ──────────────────────────────────────────
   martin:
     name: "📝 Martin (Docs Committer)"
-    description: "Commits documentation changes independently as soon as Ned finishes. Runs in parallel with Patty."
+    description: "Commits documentation changes independently as soon as Ned finishes."
     triggers: ["docs.updated"]
     publishes: ["docs.committed"]
     default_publishes: "docs.committed"
@@ -920,7 +919,6 @@ hats:
 
       If **WORKTREE**: skip tagging — the merge-loop will tag after merging to main.
       Emit release.tagged with "worktree — tagging deferred to post-merge", then LOOP_COMPLETE.
-      Ralph's auto_merge will handle the rest.
 
       If **MAIN**: proceed with the full tagging process below.
 
@@ -963,4 +961,4 @@ hats:
       - Use annotated tags (`git tag -a`), not lightweight
       - If `gh` CLI is available, verify the workflows started
       - If git push fails (e.g., protected branch), emit release.tagged with a warning
-      - In a worktree, ALWAYS skip tagging — emit LOOP_COMPLETE to trigger auto-merge
+      - In a worktree, ALWAYS skip tagging — emit LOOP_COMPLETE

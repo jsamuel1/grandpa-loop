@@ -17,8 +17,7 @@ event_loop:
   idle_timeout_secs: 600
   prompt_file: "PROMPT.md"
 
-features:
-  auto_merge: true
+features: {}
 
 core:
   specs_dir: "./docs/specs/"

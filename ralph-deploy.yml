@@ -20,8 +20,7 @@ event_loop:
   checkpoint_interval: 1
   prompt_file: "PROMPT.md"
 
-features:
-  auto_merge: true
+features: {}
 
 core:
   guardrails:
