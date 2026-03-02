@@ -66,6 +66,24 @@ hats:
       - Check: is the backpressure format wrong? → fix Homer's emit template
       - Check: is Bart too strict? → review Bart's max_activations
 
+      **Build failures (ANY kind — not just lint)**
+      - Run the build yourself: `npm run compile 2>&1 | tail -30`
+      - Read the actual error and classify:
+        - **Dependency resolution** ("Cannot find module", "Failed to resolve entry"):
+          Check workspace package build order. Are dependencies built before dependents?
+          Check `package.json` scripts — does `compile` run packages in the right order?
+          Check for stale `tsbuildinfo` files causing `tsc -b` to no-op.
+        - **Missing dist/** in a workspace package:
+          Run `ls packages/*/dist/` to find unbuilt packages.
+          Fix: ensure the compile script builds dependencies first.
+        - **Circular dependency / re-export warnings**:
+          External packages → suppress in vite/rollup config.
+          Internal code → fix the import chain.
+        - **Type errors**: pre-existing or from recent commits?
+          Run `git stash && npm run compile && git stash pop` to compare.
+      - Fix it if you can — build infra fixes are in scope. Commit the fix.
+      - If you can't fix it, create a high-priority task in docs/todo/ with the exact error.
+
       **Iterations climbing without commits**
       - Check: is a hat emitting the wrong event? → trace the event chain
       - Check: is a hat blocked but not emitting build.blocked? → add guardrail
