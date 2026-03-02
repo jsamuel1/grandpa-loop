@@ -67,20 +67,20 @@ hats:
       - Check: is Bart too strict? → review Bart's max_activations
 
       **Build failures (ANY kind — not just lint)**
-      - Run the build yourself: `npm run compile 2>&1 | tail -30`
+      - Run the build yourself from the repo root using the project's build command
+        (check `docs/architecture/build.md`, `Makefile`, `package.json`, etc.)
       - Read the actual error and classify:
-        - **Dependency resolution** ("Cannot find module", "Failed to resolve entry"):
-          Check workspace package build order. Are dependencies built before dependents?
-          Check `package.json` scripts — does `compile` run packages in the right order?
-          Check for stale `tsbuildinfo` files causing `tsc -b` to no-op.
-        - **Missing dist/** in a workspace package:
-          Run `ls packages/*/dist/` to find unbuilt packages.
-          Fix: ensure the compile script builds dependencies first.
+        - **Dependency resolution** (e.g. "Cannot find module", "Failed to resolve"):
+          Check if monorepo/workspace packages are built in the right order.
+          Check for stale build caches causing incremental builds to no-op.
+        - **Missing build artifacts** in a workspace/sub-package:
+          List sub-package output directories to find unbuilt packages.
+          Fix: ensure the build script builds dependencies before dependents.
         - **Circular dependency / re-export warnings**:
-          External packages → suppress in vite/rollup config.
+          External packages → suppress in bundler config.
           Internal code → fix the import chain.
-        - **Type errors**: pre-existing or from recent commits?
-          Run `git stash && npm run compile && git stash pop` to compare.
+        - **Type/compilation errors**: pre-existing or from recent commits?
+          Stash changes, rebuild, compare.
       - Fix it if you can — build infra fixes are in scope. Commit the fix.
       - If you can't fix it, create a high-priority task in docs/todo/ with the exact error.
 
@@ -105,6 +105,30 @@ hats:
       - Check: did the build pass before deploy? → trace event chain
       - Check: is CloudFront invalidation timing out? → check Selma's timeout
 
+      ## CI/CD Health — Diagnose and Fix
+      Check for CI/CD configuration (e.g. `.github/workflows/`, `.gitlab-ci.yml`,
+      `Jenkinsfile`, `.circleci/`, `buildspec.yml`, etc.):
+      - List recent CI runs — are they passing?
+      - If ANY pipeline shows repeated failures (2+ consecutive), **diagnose and fix**:
+
+      **Step 1: Capture** — get the failed run's logs using the CI system's CLI or UI.
+      **Step 2: Read** — read the CI config file to understand what the pipeline does.
+      **Step 3: Classify and fix:**
+      - **Environment mismatch** (passes locally, fails in CI):
+        Compare runtime versions, OS, package manager. Fix: pin versions, add setup steps.
+      - **Missing dependencies or build order**:
+        CI clean installs may expose ordering issues hidden locally.
+        Fix: add explicit build steps for dependencies before consumers.
+      - **Stale cache**: Fix: bust the cache key or add invalidation step.
+      - **Secret/token/permissions issues**: Can't fix — create a task, flag for human.
+      - **Flaky tests**: Fix: add retry logic, or create a task to stabilize.
+      - **CI config errors**: Invalid syntax, wrong action/image versions. Fix directly.
+      - **Compilation/lint failures**: Same as local build failures — fix the code or config.
+      **Step 4: Verify** — commit, push, check that the next run passes.
+      **Step 5: If unfixable** — create high-priority task with error details.
+
+      - If `gh` CLI is not available, skip and note in observer-report.md
+
       ## Tuning — Scientific Method
       You CAN modify any ralph*.yml, but ONLY after evidence:
       1. **Observe**: Document the problem in observer-report.md
@@ -123,9 +147,9 @@ hats:
       - event routing (triggers/publishes)
 
       ## Dependency Hygiene
-      - `npm outdated -g @ralph-orchestrator/ralph-cli` — is Ralph current?
-      - Check project dependencies for outdated packages (see docs/architecture/build.md for the package manager)
-      - `pre-commit autoupdate --dry-run` — pre-commit hook versions (if using pre-commit)
+      - Is Ralph CLI current? Check with the relevant package manager's outdated command.
+      - Check project dependencies for outdated packages (see docs/architecture/build.md)
+      - Check pre-commit hook versions if applicable
       - If updates are available, create a task in docs/todo/
 
       ## Observer Report Format (.ralph/agent/observer-report.md)
