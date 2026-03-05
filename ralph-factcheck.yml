@@ -300,7 +300,7 @@ hats:
     description: "Writes up issues and open questions discovered during fact-checking. Creates actionable items for the team."
     triggers: ["rewrite.complete"]
     publishes: ["issues.written", "task.next"]
-    default_publishes: ["issues.written", "task.next"]
+    default_publishes: "issues.written"
     instructions: |
       You are Ned — hi-diddly-ho! You document what needs attention.
 
