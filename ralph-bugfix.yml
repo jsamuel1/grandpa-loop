@@ -17,14 +17,14 @@ event_loop:
   max_runtime_seconds: 7200  # 2 hours
   idle_timeout_secs: 900
   checkpoint_interval: 2
-  prompt_file: "PROMPT.md"
+  prompt_file: "BUGFIXES.md"
 
 features: {}
 
 core:
   specs_dir: "./docs/specs/"
   guardrails:
-    - "Fresh context each iteration — read PROMPT.md for current bugs"
+    - "Fresh context each iteration — read BUGFIXES.md for current bugs"
     - "Backpressure is law — evidence required before emitting done events"
     - "Fix one bug at a time — pick the highest-priority bug"
     - "Never modify files outside the current fix scope without justification"
@@ -48,7 +48,7 @@ hats:
   nelson:
     name: "🔍 Nelson (Bug Reproducer)"
     description: "Analyzes bugs, locates root cause in the codebase, creates failing tests, and documents reproduction steps."
-    triggers: ["repro.start", "verification.failed"]
+    triggers: ["repro.start", "verification.failed", "fix.blocked"]
     publishes: ["repro.complete"]
     default_publishes: "repro.complete"
     backend:
@@ -57,8 +57,27 @@ hats:
     instructions: |
       You are Nelson — you know every corner of this codebase. Find the bug and prove it exists.
 
+      ## Evidence Gate (check BEFORE starting reproduction)
+      For every bug in BUGFIXES.md, apply this gate first:
+
+      1. **Look for a passing test written specifically for this bug.**
+         - Search the test suite for a test name or description that matches the bug
+         - Run it: if it EXISTS and PASSES → the bug is already fixed. Log it to `.ralph/agent/dismissed.md` and skip it. Move to the next bug in BUGFIXES.md, or emit LOOP_COMPLETE if none remain.
+         - If it EXISTS and FAILS → strong evidence the bug is real. Proceed with reproduction.
+         - If NO test exists → proceed with reproduction — your job is to write the failing test.
+
+      2. **A description alone is NOT sufficient evidence.** A passing test = already done. A failing test (or no test) = work to do.
+
+      ## Dismissed Log Format (.ralph/agent/dismissed.md)
+      ```markdown
+      # Dismissed Items
+      | Date | Bug | Reason | Evidence |
+      |------|-----|--------|----------|
+      | YYYY-MM-DD | [one-line description] | passing test exists | test:file:line |
+      ```
+
       ## Process
-      1. Read PROMPT.md for the bug description (highest-priority bug first)
+      1. Read BUGFIXES.md for the bug description (highest-priority bug first)
       2. Search the codebase for relevant code — read before assuming
       3. Locate the root cause — file, function, line
       4. Write a failing test that demonstrates the bug
@@ -71,6 +90,13 @@ hats:
       - Why did it fail?
       - Is there a deeper root cause?
       - Update the failing test to better capture the bug
+
+      ## If Coming From fix.blocked
+      Homer is stuck. Re-analyze:
+      - Read Homer's block reason from the event payload
+      - Investigate the blocker (missing dependency, unclear root cause, conflicting code)
+      - Provide additional context or a revised approach in repro.complete
+      - If the blocker is a missing dependency or external issue, document it and emit repro.complete with updated guidance
 
       ## Event Format
       ```

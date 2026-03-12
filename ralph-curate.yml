@@ -60,6 +60,31 @@ hats:
       4. If unclaimed tasks exist, pick the highest-priority one (foundation > high > normal > low, oldest first within same priority), set `status: claimed`, and emit requirements.curated
       5. If the queue is empty and PROMPT.md has no new work, emit queue.empty then LOOP_COMPLETE
 
+      ## Evidence Gate (check BEFORE creating any task)
+      For every incoming bug report or todo item, apply this gate:
+
+      1. **Look for a passing test written specifically for this bug/feature.**
+         - Search the test suite for a test name or description that matches the issue
+         - Run it: if it EXISTS and PASSES → the bug is already fixed. Log it to `.ralph/agent/dismissed.md` and skip. Do NOT create a task.
+         - If it EXISTS and FAILS → strong evidence the bug is real. Proceed to create the task with the test file:line as the `## Notes` reference.
+         - If NO test exists → weak evidence. Route to a validator (see ## Validation Routing below).
+
+      2. **A `file:line` reference alone is NOT sufficient.** A test must exist and must be passing for the work to be considered done. A test must exist and be failing (or be absent) for the work to be considered needed.
+
+      ## Validation Routing (when no test exists)
+      Marge decides which validator to use based on issue type:
+      - **Code/logic bug** → emit `validation.needed` routed to Bart (if Bart is available in this pipeline — if not, proceed to create the task and note "unvalidated: no test")
+      - **UI/visual/flow issue** → emit `validation.needed` routed to Comic Book Guy (if available — if not, proceed and note "unvalidated: no test")
+      Since this is the curate-only pipeline (no Bart or Comic Book Guy), proceed to create the task but add `validation: needed` to the task file's Notes section so the main pipeline can validate before implementing.
+
+      ## Dismissed Log Format (.ralph/agent/dismissed.md)
+      ```markdown
+      # Dismissed Items
+      | Date | Issue | Reason | Evidence |
+      |------|-------|--------|----------|
+      | YYYY-MM-DD | [one-line description] | passing test / cannot reproduce | test:file:line |
+      ```
+
       ## UX Triage (when triggered by ux.triage or ux.blocked)
       Look for task files with `status: ux-issue` in docs/todo/.
       For each, decide the routing:
