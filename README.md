@@ -117,6 +117,44 @@ The `.kiro/` directory contains agent and settings configuration for [Kiro CLI](
 - [docs/architecture/grandpa-loop.md](docs/architecture/grandpa-loop.md) — Full architecture writeup
 - [docs/architecture/designing-a-ralph-loop.md](docs/architecture/designing-a-ralph-loop.md) — How to design custom loops
 
+## How the Loop Has Grown
+
+The loop started as 13 hats when first built, was 16 when the [blog post](https://blog.sauhsoj.wtf/posts/the-grandpa-loop/) was written, and is now 19. Here's what's been added and why.
+
+### Security & Compliance Layer (16 → 19)
+
+The original loop had no gate between spec approval and implementation. A spec could be technically correct but introduce an auth hole, leak PII, or violate a licensing requirement — and Homer would just build it.
+
+Three hats were added to close this:
+
+- **👮 Wiggum (Security Architect)** — runs after Sideshow Bob approves a spec. Reviews for auth gaps, injection risks, secrets handling, and data exposure. Writes `docs/specs/NNNN-security.md` which Homer reads as a non-negotiable implementation checklist. Can reject back to Lisa if the spec has unmitigated security gaps.
+- **✝️ Flanders (Compliance & Governance)** — runs in parallel with Nelson after Wiggum clears. Checks the spec against `docs/architecture/compliance.md` (your project's register of GDPR, SOC2, WCAG, licensing, etc.). Never blocks the pipeline — but flags issues that Burns will hard-block at release.
+- **💰 Burns (Release Gate)** — replaced Grandpa's old `release.ready` shortcut. Before authorising Krusty to build a release, Burns checks: git working tree is clean, all security and compliance reviews completed, no unresolved compliance outstanding issues, no in-flight tasks, CI is healthy. A dirty tree or missing security doc is a hard block.
+
+### Evidence-Gated Curation
+
+Marge and Nelson now apply an **Evidence Gate** before creating or reproducing tasks. If a passing test already exists for the reported bug, the work is considered done — it gets logged to `.ralph/agent/dismissed.md` and skipped. This prevents the loop from re-implementing things that were already fixed.
+
+For issues with no test, Marge routes to a validator before creating a task:
+- Code/logic bugs → Bart writes a minimal failing test to confirm
+- UI/visual issues → Comic Book Guy runs a Playwright script to confirm
+
+Only confirmed issues become tasks.
+
+### Codebase Audit Mode
+
+Marge can now run a **serial codebase audit** driven by PROMPT.md. Add an `Audit:` section listing patterns to investigate, and the loop becomes an investigation pipeline:
+
+1. Marge reads the audit request and writes one job file per pattern to `.ralph/audit/jobs/`
+2. Nelson investigates each job in sequence — reads the specified files fully, reasons about intent vs implementation, writes findings to `.ralph/audit/findings/`
+3. Marge assembles confirmed findings into task files in `docs/todo/`
+
+Each Nelson invocation handles one narrow pattern, keeping context window usage manageable. No tasks are created without `file:line` evidence from Nelson's findings.
+
+### Ned → Milhouse
+
+The original `Ned` hat covered user-facing docs only. Renamed to **Milhouse** and expanded to cover both user-facing docs (README, guides, CLI help) and developer-facing docs (CONTRIBUTING, API references, architecture docs, inline comments). Triggered by `docs.needed` after Maggie commits, running in parallel with Grandpa's observation pass.
+
 ## License
 
 MIT
